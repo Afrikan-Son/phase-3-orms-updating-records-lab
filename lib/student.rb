@@ -6,7 +6,7 @@ class Student
   #  with DB[:conn]
   attr_accessor :id, :name, :grade
 
-  def initialize(id = nil, name, grade)
+  def initialize(id=nil, name, grade)
     @id = id
     @name = name
     @grade = grade
@@ -20,7 +20,6 @@ class Student
         grade INTEGER
       )
     SQL
-
     DB[:conn].execute(sql)
   end
 
@@ -30,9 +29,21 @@ class Student
   end
 
   def save
-    sql = "INSERT INTO students (name, grade) VALUES (?, ?)"
-    DB[:conn].execute(sql, self.name, self.grade)
-    self.id = DB[:conn].execute("SELECT last_insert_rowid() FROM students")[0][0]
+    if self.id
+      update
+    else
+      sql = <<-SQL
+        INSERT INTO students (name, grade)
+        VALUES (?, ?)
+      SQL
+      DB[:conn].execute(sql, self.name, self.grade)
+      self.id = DB[:conn].execute("SELECT last_insert_rowid() FROM students")[0][0]
+    end
+  end
+
+  def update
+    sql = "UPDATE students SET name = ?, grade = ? WHERE id = ?"
+    DB[:conn].execute(sql, self.name, self.grade, self.id)
   end
 
   def self.create(name, grade)
@@ -42,19 +53,16 @@ class Student
   end
 
   def self.new_from_db(row)
-    id, name, grade = row
+    id = row[0]
+    name = row[1]
+    grade = row[2]
     Student.new(id, name, grade)
   end
 
   def self.find_by_name(name)
     sql = "SELECT * FROM students WHERE name = ? LIMIT 1"
     row = DB[:conn].execute(sql, name).first
-    self.new_from_db(row) if row
-  end
-
-  def update
-    sql = "UPDATE students SET name = ?, grade = ? WHERE id = ?"
-    DB[:conn].execute(sql, self.name, self.grade, self.id)
+    new_from_db(row) if row
   end
 
   
